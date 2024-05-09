@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Simple HTML Editor</title>
+    <style>
+      main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        height: 400px;
+      }
+      textarea,
+      iframe {
+        border: 1px solid black;
+      }
+      iframe {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "acorn": "https://esm.sh/acorn@8.11.3",
+          "acorn-walk": "https://esm.sh/acorn-walk@8.3.2",
+          "magic-string": "https://esm.sh/magic-string@0.30.10"
+        }
+      }
+    </script>
+    <script type="module">
+      import { parse } from 'acorn'
+      import { simple } from 'acorn-walk'
+      import MagicString from 'magic-string'
+
+      const textarea = document.querySelector('textarea')
+      const constLetRegex = /const\s|let\s/g
+      const parser = new DOMParser()
+
+      function previewRegex() {
+        const iframe = document.querySelector('iframe')
+        const iframeDoc = iframe.contentDocument
+        const doc = parser.parseFromString(textarea.value, 'text/html')
+        const script = doc.querySelector('script')
+        const replaced = script.textContent.replace(constLetRegex, 'var ')
+
+        script.textContent = replaced
+
+        iframeDoc.open()
+        iframeDoc.write(doc.documentElement.innerHTML)
+        iframeDoc.close()
+      }
+
+      function previewParse() {
+        const iframe = document.querySelector('iframe')
+        const iframeDoc = iframe.contentDocument
+        const doc = parser.parseFromString(textarea.value, 'text/html')
+        const script = doc.querySelector('script')
+        const magic = new MagicString(script?.textContent || '')
+        let ast = null
+
+        try {
+          ast = parse(script.textContent, {
+            ecmaVersion: 2023,
+            sourceType: 'module'
+          })
+        } catch {
+          /* do nothing */
+        }
+
+        if (ast) {
+          simple(ast, {
+            VariableDeclaration(node) {
+              magic.overwrite(node.start, node.start + node.kind.length, 'var')
+            }
+          })
+
+          script.textContent = magic.toString()
+
+          iframeDoc.open()
+          iframeDoc.write(doc.documentElement.innerHTML)
+          iframeDoc.close()
+        }
+      }
+
+      textarea.addEventListener('input', previewParse)
+      // Or use a RegEx
+      // textarea.addEventListener('input', previewRegex)
+    </script>
+  </head>
+  <body>
+    <main>
+      <textarea></textarea>
+      <iframe></iframe>
+    </main>
+  </body>
+</html>

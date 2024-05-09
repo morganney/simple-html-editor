@@ -3,7 +3,7 @@
   "scripts": {
     "prettier": "prettier -w .",
     "build": "vite build",
-    "build:deploy": "vite build --base=/morganney/",
+    "build:deploy": "vite build --base=/simple-html-editor/",
     "preview": "vite preview"
   },
   "devDependencies": {

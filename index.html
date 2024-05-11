@@ -33,17 +33,20 @@
       import MagicString from 'magic-string'
 
       const textarea = document.querySelector('textarea')
-      const constLetRegex = /const\s|let\s/g
+      const constLetRegex = /\bconst\s|\blet\s/g
       const parser = new DOMParser()
 
       function previewRegex() {
         const iframe = document.querySelector('iframe')
         const iframeDoc = iframe.contentDocument
         const doc = parser.parseFromString(textarea.value, 'text/html')
-        const script = doc.querySelector('script')
-        const replaced = script.textContent.replace(constLetRegex, 'var ')
+        const scripts = doc.querySelectorAll('script')
 
-        script.textContent = replaced
+        if (scripts.length) {
+          scripts.forEach((script) => {
+            script.textContent = script.textContent.replace(constLetRegex, 'var ')
+          })
+        }
 
         iframeDoc.open()
         iframeDoc.write(doc.documentElement.innerHTML)
@@ -54,35 +57,40 @@
         const iframe = document.querySelector('iframe')
         const iframeDoc = iframe.contentDocument
         const doc = parser.parseFromString(textarea.value, 'text/html')
-        const script = doc.querySelector('script')
-        const magic = new MagicString(script?.textContent || '')
-        let ast = null
+        const scripts = doc.querySelectorAll('script')
 
-        try {
-          ast = parse(script.textContent, {
-            ecmaVersion: 2023,
-            sourceType: 'module'
-          })
-        } catch {
-          /* do nothing */
-        }
+        if (scripts.length) {
+          scripts.forEach((script) => {
+            const magic = new MagicString(script?.textContent || '')
+            let ast = null
 
-        if (ast) {
-          simple(ast, {
-            VariableDeclaration(node) {
-              magic.overwrite(node.start, node.start + node.kind.length, 'var')
+            try {
+              ast = parse(script.textContent, {
+                ecmaVersion: 2023,
+                sourceType: 'module'
+              })
+            } catch {
+              /* do nothing */
+            }
+
+            if (ast) {
+              simple(ast, {
+                VariableDeclaration(node) {
+                  magic.overwrite(node.start, node.start + node.kind.length, 'var')
+                }
+              })
+
+              script.textContent = magic.toString()
             }
           })
-
-          script.textContent = magic.toString()
-
-          iframeDoc.open()
-          iframeDoc.write(doc.documentElement.innerHTML)
-          iframeDoc.close()
         }
+
+        iframeDoc.open()
+        iframeDoc.write(doc.documentElement.innerHTML)
+        iframeDoc.close()
       }
 
-      textarea.addEventListener('input', previewParse)
+      textarea.addEventListener('input', previewRegex)
       // Or use a RegEx
       // textarea.addEventListener('input', previewRegex)
     </script>
